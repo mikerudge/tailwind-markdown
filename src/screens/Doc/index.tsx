@@ -5,15 +5,15 @@ import { useSearchParams } from "react-router-dom"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import remarkGfm from "remark-gfm"
+import { Viewer } from "../../components/Viewer"
 
 interface DocScreenProps {}
 
 const DocScreen: React.FunctionComponent<DocScreenProps> = () => {
 	let [searchParams] = useSearchParams()
-	console.log("searchParams", searchParams)
+
 	const encodedContent = searchParams.get("content") ?? ""
 	const bgColorURL = searchParams.get("bgColor") ?? ""
-	console.log("bgColorURL", bgColorURL)
 	const [content, setContent] = React.useState<string>("")
 	const [bgColor, setBgColor] = React.useState<string>("")
 
@@ -29,7 +29,7 @@ const DocScreen: React.FunctionComponent<DocScreenProps> = () => {
 		if (bgColorURL.length > 1) {
 			//  bse 64 decode the background color
 			const decodedBgColor = Buffer.from(bgColorURL, "base64").toString()
-			console.log("decodedBgColor", decodedBgColor)
+
 			setBgColor(decodedBgColor)
 		}
 	}, [bgColorURL])
@@ -41,28 +41,7 @@ const DocScreen: React.FunctionComponent<DocScreenProps> = () => {
 				style={{ background: bgColor }}
 			>
 				<div className='xl:mt-2'>
-					<ReactMarkdown
-						remarkPlugins={[remarkGfm]}
-						children={content}
-						components={{
-							code({ node, inline, className, children, ...props }) {
-								const match = /language-(\w+)/.exec(className || "")
-								return !inline && match ? (
-									<SyntaxHighlighter
-										children={String(children).replace(/\n$/, "")}
-										style={dark}
-										language={match[1]}
-										PreTag='div'
-										{...props}
-									/>
-								) : (
-									<code className={`${className} bg-transparent`} {...props}>
-										{children}
-									</code>
-								)
-							},
-						}}
-					/>
+					<Viewer content={content} />
 				</div>
 			</div>
 		</div>

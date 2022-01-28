@@ -1,12 +1,11 @@
 import { ShareIcon } from "@heroicons/react/solid"
 import React from "react"
 import { GithubPicker } from "react-color"
-import ReactMarkdown from "react-markdown"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { dark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import remarkGfm from "remark-gfm"
+
+import { useLocalStorage, useDebounce, useBoolean, useMedia } from "react-use"
 
 import { Buffer } from "buffer"
+import { Viewer } from "../../components/Viewer"
 
 const defaultContent = `# Introduction to Doc creator
 
@@ -57,10 +56,34 @@ You can use almost any markdown syntax to create your documentation, such as:
 `
 
 function Home() {
-	const [content, setContent] = React.useState(defaultContent)
+	const [value, setValue, remove] = useLocalStorage("content", "")
+	const [showImportUrl, toggleInput] = useBoolean(false)
+	const [content, setContent] = React.useState(value || defaultContent)
 	const [bgColor, setBgColor] = React.useState("")
 	const [showColorPicker, setShowColorPicker] = React.useState(false)
+	const isLg = useMedia("(min-width: 1024px)")
+
+	useDebounce(
+		() => {
+			setValue(content)
+		},
+		1000,
+		[content]
+	)
+
 	const encode = (value: string) => Buffer.from(value).toString("base64")
+
+	const processURLForContent = (url: string) => {
+		// Get the content from the url search params
+
+		const encodedContent = url.split("content=")[1]
+
+		if (encodedContent) {
+			// Decode the base64 encoded content
+			const decodedString = Buffer.from(encodedContent, "base64").toString()
+			setContent(decodedString)
+		}
+	}
 
 	const onCopyLink = () => {
 		// base 64 encode the content
@@ -83,38 +106,62 @@ function Home() {
 		<div className='flex flex-col w-full min-h-screen lg:flex-row '>
 			<div className='w-full h-full p-2 md:p-8 lg:w-1/2 lg:prose-xl'>
 				<div className='prose'>
-					<h1>Doc Creator</h1>
+					<h1>MD Document Creator</h1>
 					<p className='text-lg text-gray-800 '>
 						Write markdown and get a beautiful doc that you can share with
 						anyone. Your content is encoded directly in the URL, which means it
-						is never stored in cloud system, and you can share it with anyone
-						without the need for any accounts
+						never touches any server, and you can share it with anyone without
+						the need for any accounts with just a simple (but admittedly long)
+						URL.
 					</p>
-
-					<div className='mt-4 mb-4'>
-						<button
-							onClick={() => setContent("")}
-							className='py-4 px-2 rounded text-sm bg-slate-50 hover:bg-slate-100 font-bold'
-						>
-							Clear content
-						</button>
-					</div>
-
-					<label htmlFor='content' className='hidden'>
-						Content
-					</label>
 				</div>
+				<div className='mt-4 mb-4 flex justify-between'>
+					<button
+						onClick={() => {
+							setContent("")
+							remove()
+						}}
+						className='py-4 px-2 rounded text-sm bg-slate-50 hover:bg-slate-100 font-bold'
+					>
+						Clear content
+					</button>
+
+					<button
+						onClick={() => {
+							toggleInput()
+						}}
+						className='py-4 px-2 rounded text-sm bg-slate-50 hover:bg-slate-100 font-bold'
+					>
+						Import from URL
+					</button>
+				</div>
+				{showImportUrl && (
+					<input
+						onChange={(e) => {
+							processURLForContent(e.target.value)
+						}}
+						placeholder='https://content-creator.co.uk'
+						type='url'
+						className='w-full p-2 rounded mb-4'
+					/>
+				)}
+
+				<label htmlFor='content' className='hidden'>
+					Content
+				</label>
 				<textarea
+					rows={isLg ? 30 : 20}
 					onFocus={() => {
 						if (content === defaultContent) {
 							setContent("")
 						}
 					}}
 					value={content}
-					rows={20}
 					id='content'
-					onChange={(e) => setContent(e.target.value)}
-					className='w-full h-full p-2 rounded grow bg-slate-800 text-slate-100'
+					onChange={(e) => {
+						setContent(e.target.value)
+					}}
+					className='w-full h-full-screen p-2 rounded grow bg-slate-800 text-slate-100'
 				/>
 			</div>
 
@@ -159,28 +206,7 @@ function Home() {
 					</button>
 				</div>
 				<div className='mt-8 prose text-slate-800 '>
-					<ReactMarkdown
-						remarkPlugins={[remarkGfm]}
-						children={content}
-						components={{
-							code({ node, inline, className, children, ...props }) {
-								const match = /language-(\w+)/.exec(className || "")
-								return !inline && match ? (
-									<SyntaxHighlighter
-										children={String(children).replace(/\n$/, "")}
-										style={dark}
-										language={match[1]}
-										PreTag='div'
-										{...props}
-									/>
-								) : (
-									<code className={`${className} bg-transparent`} {...props}>
-										{children}
-									</code>
-								)
-							},
-						}}
-					/>
+					<Viewer content={content} />
 				</div>
 			</div>
 		</div>
